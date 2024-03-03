@@ -73,13 +73,17 @@ class TeachersController(DatabaseController):
         result = self.read_all()
         return result
 
-    def read(self, teacher_id: int):
+    def read(self, field: int):
         """Просмотр записи
-        :param teacher_id: - ID преподавателя
-        :return: сведения о преподавателе"""
-        insert_query = (f"""SELECT t.name, t.surname, t.patronymic FROM teachers t
-                            WHERE t.id='{teacher_id}';"""
+        :param field: - ID преподавателя
+        :return: сведения о предметах этого преподавателя"""
+        insert_query = (f"""SELECT si.name, si.classes_type, si.planned_workload, si.actual_workload
+                            FROM subject_info si
+                            JOIN subjects ON si.id = subjects.subject_id
+                            JOIN teachers ON subjects.teacher_id = teachers.id
+                            WHERE teachers.id = '{field}'; """
                         )
+
         result = self.execute_fetchall(insert_query)
         return result
 
@@ -99,9 +103,11 @@ class TeachersController(DatabaseController):
                             WHERE id = {fields["id"]}; """
                         )
         self.execute_with_commit(insert_query)
-        return self.read(fields["id"])
+        for i in self.read_all():
+            if i[1] == fields['name']:
+                return i
 
-    def delete(self, teacher_id: dict):
+    def delete(self, teacher_id: int):
         """Удаление данных о преподавателе
         :param teacher_id: - ID преподавателя
         :return: сообщение об успешном удалении"""
@@ -114,7 +120,7 @@ class TeachersController(DatabaseController):
     def connect_with_subject(self, fields: dict):
         """Закрепление преподавателя за предметом
         :param fields: - данные преподавателя, данные предмета
-        :return: сведения о предметах преподавателя"""
+        :return: сведения о занятии у преподавателя"""
         new_id = self.execute_fetchone('SELECT id FROM subjects ORDER BY id DESC LIMIT 1;') + 1
         insert_query = (f"""INSERT INTO subjects (id, teacher_id, subject_id)
                             VALUES ({new_id}, {fields["teacher_id"]}, {fields["subject_id"]});"""
@@ -128,26 +134,26 @@ class SubjectController(DatabaseController):
 
     def create(self, fields: dict):
         """Функция для создания записи"""
+        new_id = self.execute_fetchone('SELECT id FROM subject_info ORDER BY id DESC LIMIT 1;') + 1
         insert_query = (f"""INSERT INTO subject_info (id, name, classes_type, planned_workload, actual_workload)
-                            Values ({fields["id"]},
+                            Values ('{new_id} ',
                                     '{fields["name"]}',
                                     '{fields["classes_type"]}',
-                                    {fields["planned_workload"]},
-                                    {fields["actual_workload"]});""")
-        self.execute(insert_query)
+                                    '{fields["planned_workload"]}',
+                                    '{fields["actual_workload"]}' );""")
+        self.execute_with_commit(insert_query)
+        return self.read_all()[-1]
 
-    def read(self, field: str):
+    def read(self, field: int):
         """Просмотр записи
-        :param field: - название предмета
-        :return: сведения о преподавателях, закрепленных за предметом"""
-        insert_query = (f"""SELECT t.surname, t.name, t.patronymic
-                            FROM teachers t
-                            JOIN subjects s ON s.teacher_id = t.id
-                            JOIN subject_info si ON si.id = s.subject_id
-                            WHERE si.name = '{field.title()}'; """
+        :param field: - ID предмета
+        :return: сведения о предметах у преподавателя"""
+        insert_query = (f"""SELECT * FROM subject_info si
+                            WHERE si.id = {field}; """
                         )
-        teachers = self.execute_fetchall(insert_query)
-        return teachers
+
+        result = self.execute_fetchall(insert_query)
+        return result
 
     def read_all(self):
         """Просмотр всех записей в таблице"""
@@ -168,30 +174,27 @@ class SubjectController(DatabaseController):
                         )
         self.execute_with_commit(insert_query)
         for i in self.read_all():
-            if i[1] == fields['name']:
+            if i[0] == fields['id']:
                 return i
 
-    def delete(self, fields: dict):
+    def delete(self, subject_id: int):
         """Удаление данных о дисциплине
-        :param fields: - данные дисциплины
+        :param subject_id: - ID дисциплины
         :return: сообщение об успешном удалении"""
-        insert_query = (f"""DELETE FROM subjects WHERE subject_id = {fields["id"]};
-                            DELETE FROM subject_info WHERE id = {fields["id"]}; """
+        insert_query = (f"""DELETE FROM subjects WHERE subject_id = {subject_id};
+                            DELETE FROM subject_info WHERE id = {subject_id}; """
                         )
-        self.execute(insert_query)
-        print(f"Записи связанные с id = {fields['id']} успешно удалены")
+        self.execute_with_commit(insert_query)
+        return self.read_all()
 
     def connect_with_teacher(self, fields: dict):
         """Закрепление предмета за преподавателем
         :param fields: - данные преподавателя, данные предмета
-        :return: сведения о предметах преподавателя"""
-        insert_query = (f"""Insert Into subjects (id, teacher_id, subject_id)
-                            Values ({fields["id"]}, {fields["teacher_id"]}, {fields["subject_id"]});
-                            SELECT s.name AS subject_name
-                            FROM teachers t
-                            JOIN subjects sub ON t.id = sub.teacher_id
-                            JOIN subject_info s ON sub.subject_id = s.id
-                            WHERE t.id = {fields["teacher_id"]} """
+        :return: сведения о занятии у преподавателя"""
+        new_id = self.execute_fetchone('SELECT id FROM subjects ORDER BY id DESC LIMIT 1;') + 1
+        insert_query = (f"""INSERT INTO subjects (id, teacher_id, subject_id)
+                            VALUES ({new_id}, {fields["teacher_id"]}, {fields["subject_id"]});"""
                         )
-        subjects = self.execute_fetchall(insert_query)
-        return subjects
+        self.execute_with_commit(insert_query)
+        new_row = self.execute_fetchall(f'SELECT * FROM subjects WHERE subjects.id = {new_id};')
+        return new_row
