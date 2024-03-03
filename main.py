@@ -15,7 +15,7 @@ if __name__ == '__main__':
                                          'name': 'Максим',
                                          'surname': 'Бермецуцкий',
                                          'patronymic': 'Антонович'})))
-    print(f'Удаление записи в таблице teachers: ' + str(teacher_controller.delete(32)))
+    print(f'Удаление записи в таблице teachers. Последняя запись: ' + str(teacher_controller.delete(32)[-1]))
 
     print(f'Создана запись в таблице subject_info: ' + str(subject_controller.create({'name': 'Математический анализ',
                                                                                       'classes_type': 'Лекция',
@@ -30,4 +30,4 @@ if __name__ == '__main__':
                                          'classes_type': 'Лабораторная работа',
                                          'planned_workload': 62,
                                          'actual_workload': 64})))
-    print(f'Удаление записи в таблице subject_info: ' + str(subject_controller.delete(31)))
+    print(f'Удаление записи в таблице subject_info. Последняя запись: ' + str(subject_controller.delete(31)[-1]))
